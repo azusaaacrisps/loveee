@@ -1,16 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { useCoupleStore } from '../stores/couple';
 import { useMusicStore } from '../stores/music';
 import { useLoveHeartStore } from '../stores/loveHeart';
-import { fetchSongInfo, refreshSongUrl, formatLyrics, createManualSong } from '../services/musicService';
+import { fetchSongInfo, formatLyrics, createManualSong } from '../services/musicService';
 import { BottomNav } from '../components/BottomNav';
 import { SharedSong } from '../types';
+
+/** 直接跳转到网易云音乐 App（支持 desktop web 回退） */
+const openInNeteaseApp = (songId: string) => {
+  const appUrl = `orpheus://song/${songId}`;
+  const webUrl = `https://music.163.com/song?id=${songId}`;
+  window.location.href = appUrl;
+  // 如果 2 秒后还停留在当前页面，说明未安装 App，自动跳网页版
+  setTimeout(() => {
+    window.open(webUrl, '_blank');
+  }, 2000);
+};
 
 export const MusicPage: React.FC = () => {
   const { user } = useAuthStore();
   const { profile } = useCoupleStore();
-  const { songs, currentSong, isPlaying, loadSongs, addSong, setCurrentSong, togglePlay, deleteSong, updateCurrentSongUrl } = useMusicStore();
+  const { songs, currentSong, loadSongs, addSong, deleteSong } = useMusicStore();
   const { addHeart } = useLoveHeartStore();
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -18,71 +29,14 @@ export const MusicPage: React.FC = () => {
   const [comment, setComment] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [manualInput, setManualInput] = useState(false);
   const [manualSongName, setManualSongName] = useState('');
   const [manualArtist, setManualArtist] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const lyricsRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     loadSongs();
   }, [loadSongs]);
-
-  // Set referrerPolicy on the audio element (React types don't support it on <audio>)
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.setAttribute('referrerPolicy', 'no-referrer');
-    }
-  }, [currentSong?.url]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.play().catch(console.error);
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [isPlaying, currentSong]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration || 0);
-    const handleEnded = () => togglePlay();
-
-    audio.addEventListener('timeupdate', updateTime);
-    audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateTime);
-      audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [currentSong]);
-
-  useEffect(() => {
-    if (currentSong && lyricsRef.current) {
-      const lyrics = formatLyrics(currentSong.lyrics);
-      const currentLyricIndex = lyrics.findIndex(
-        (l, i) => currentTime >= parseFloat(l.time) && (i === lyrics.length - 1 || currentTime < parseFloat(lyrics[i + 1].time))
-      );
-      
-      if (currentLyricIndex >= 0) {
-        const element = lyricsRef.current.children[currentLyricIndex] as HTMLElement;
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
-    }
-  }, [currentTime, currentSong]);
 
   const handleAddSong = async () => {
     if (manualInput) {
@@ -150,27 +104,9 @@ export const MusicPage: React.FC = () => {
     }
   };
 
-  const handlePlaySong = async (song: SharedSong) => {
-    if (currentSong?.id === song.id) {
-      togglePlay();
-      return;
-    }
-    // 先设置歌曲（让 UI 立即响应），再异步刷新播放 URL
-    setCurrentSong(song);
-    try {
-      const freshUrl = await refreshSongUrl(song.songId);
-      if (freshUrl && freshUrl !== song.url) {
-        updateCurrentSongUrl(freshUrl);
-      }
-    } catch {
-      // URL 刷新失败，继续使用已有的 url
-    }
-  };
-
-  const formatTime = (time: number): string => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const handlePlaySong = (song: SharedSong) => {
+    // 不再内建播放，直接跳转到网易云音乐 App
+    openInNeteaseApp(song.songId);
   };
 
   const getNickname = (gender: 'boy' | 'girl') => {
@@ -227,55 +163,18 @@ export const MusicPage: React.FC = () => {
             </div>
 
             <div className="mt-4">
-              <div className="flex items-center justify-between text-text-muted text-xs mb-2">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-              <div className="relative h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all"
-                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 mt-4">
               <button
-                onClick={() => audioRef.current?.currentTime && (audioRef.current.currentTime -= 10)}
-                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                onClick={() => openInNeteaseApp(currentSong.songId)}
+                className="w-full py-3 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-medium hover:opacity-90 transition-opacity shadow-md"
               >
-                ⏪
-              </button>
-              <button
-                onClick={togglePlay}
-                className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl shadow-lg hover:shadow-xl transition-all"
-              >
-                {isPlaying ? '⏸' : '▶'}
-              </button>
-              <button
-                onClick={() => audioRef.current?.currentTime && (audioRef.current.currentTime += 10)}
-                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
-              >
-                ⏩
+                在网易云音乐中打开
               </button>
             </div>
 
             {currentSong.lyrics && (
-              <div
-                ref={lyricsRef}
-                className="mt-4 h-32 overflow-y-auto text-center space-y-2 scrollbar-hide"
-              >
+              <div className="mt-4 max-h-40 overflow-y-auto text-center space-y-2 scrollbar-hide">
                 {formatLyrics(currentSong.lyrics).map((lyric, index) => (
-                  <p
-                    key={index}
-                    className={`text-sm transition-colors ${
-                      currentTime >= parseFloat(lyric.time) &&
-                      (index === formatLyrics(currentSong.lyrics).length - 1 ||
-                        currentTime < parseFloat(formatLyrics(currentSong.lyrics)[index + 1].time))
-                        ? 'text-primary font-medium'
-                        : 'text-text-muted'
-                    }`}
-                  >
+                  <p key={index} className="text-sm text-text-muted">
                     {lyric.text}
                   </p>
                 ))}
@@ -333,7 +232,7 @@ export const MusicPage: React.FC = () => {
                     }}
                     className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
                   >
-                    {currentSong?.id === song.id && isPlaying ? '⏸' : '▶'}
+                    ▶
                   </button>
                   <button
                     onClick={(e) => {
@@ -352,8 +251,6 @@ export const MusicPage: React.FC = () => {
       </div>
 
       <BottomNav onHeartClick={addHeart} />
-
-      <audio ref={audioRef} src={currentSong?.url || ''} />
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
