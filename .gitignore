@@ -16,6 +16,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.production
 
 # 网易云账号 Cookie（绝不能提交）
 netease-cookie.txt
