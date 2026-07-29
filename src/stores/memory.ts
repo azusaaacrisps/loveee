@@ -66,7 +66,9 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
         
         const firebaseIds = new Set(firebaseMemories.map(m => m.id));
         const memoriesNotInFirebase = localMemories.filter(m => !firebaseIds.has(m.id));
-        memories = [...newFromFirebase, ...memoriesNotInFirebase];
+        if (newFromFirebase.length > 0 || memoriesNotInFirebase.length > 0) {
+          memories = [...newFromFirebase, ...memoriesNotInFirebase];
+        }
       }
     } catch (error) {
       console.log('Using local memories (Firebase unavailable)');

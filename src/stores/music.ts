@@ -32,6 +32,9 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
 
+    // 如果已经有监听器在运行，不用重复设置
+    if ((get() as any)._unsubscribe) return;
+
     // 先加载一次初始数据
     await get().loadSongs();
 
@@ -119,7 +122,9 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
         
         const firebaseIds = new Set(firebaseSongs.map(s => s.id));
         const songsNotInFirebase = localSongs.filter(s => !firebaseIds.has(s.id));
-        songs = [...newFromFirebase, ...songsNotInFirebase];
+        if (newFromFirebase.length > 0 || songsNotInFirebase.length > 0) {
+          songs = [...newFromFirebase, ...songsNotInFirebase];
+        }
       }
     } catch (error) {
       console.log('Using local songs (Firebase unavailable)');

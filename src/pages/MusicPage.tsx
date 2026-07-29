@@ -21,7 +21,7 @@ const openInNeteaseApp = (songId: string) => {
 export const MusicPage: React.FC = () => {
   const { user } = useAuthStore();
   const { profile } = useCoupleStore();
-  const { songs, currentSong, loadSongs, addSong, deleteSong } = useMusicStore();
+  const { songs, currentSong, syncSongs, addSong, deleteSong } = useMusicStore();
   const { addHeart } = useLoveHeartStore();
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -35,8 +35,8 @@ export const MusicPage: React.FC = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   
   useEffect(() => {
-    loadSongs();
-  }, [loadSongs]);
+    syncSongs();
+  }, [syncSongs]);
 
   const handleAddSong = async () => {
     if (manualInput) {

@@ -66,7 +66,9 @@ export const useAnniversaryStore = create<AnniversaryStore>((set, get) => ({
         
         const firebaseIds = new Set(firebaseAnniversaries.map(a => a.id));
         const anniversariesNotInFirebase = localAnniversaries.filter(a => !firebaseIds.has(a.id));
-        anniversaries = [...newFromFirebase, ...anniversariesNotInFirebase];
+        if (newFromFirebase.length > 0 || anniversariesNotInFirebase.length > 0) {
+          anniversaries = [...newFromFirebase, ...anniversariesNotInFirebase];
+        }
       }
     } catch (error) {
       console.log('Using local anniversaries (Firebase unavailable)');

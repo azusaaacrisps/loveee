@@ -68,7 +68,10 @@ export const useWishlistStore = create<WishlistStore>((set, get) => ({
         
         const firebaseIds = new Set(firebaseWishes.map(w => w.id));
         const wishesNotInFirebase = localWishes.filter(w => !firebaseIds.has(w.id));
-        wishes = [...newFromFirebase, ...wishesNotInFirebase];
+        // 只有当真正有新数据或差异时才重新赋值，避免空数组覆盖已有数据
+        if (newFromFirebase.length > 0 || wishesNotInFirebase.length > 0) {
+          wishes = [...newFromFirebase, ...wishesNotInFirebase];
+        }
       }
     } catch (error) {
       console.log('Using local wishes (Firebase unavailable)');

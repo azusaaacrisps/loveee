@@ -336,11 +336,17 @@ export const musicService = {
   },
   onChange: (coupleId: string, callback: (songs: SharedSong[]) => void): () => void => {
     const colRef = collection(db, COLLECTIONS.COUPLES, coupleId, COLLECTIONS.MUSIC);
-    const q = query(colRef, orderBy('addedAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-      const songs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as SharedSong);
-      callback(songs);
-    });
+    const q = query(colRef, orderBy('createdAt', 'desc'));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const songs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as SharedSong);
+        callback(songs);
+      },
+      (error) => {
+        console.error('Music onSnapshot error:', error);
+      }
+    );
   },
 };
 

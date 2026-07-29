@@ -75,7 +75,9 @@ export const useDailyStore = create<DailyStore>((set, get) => ({
         
         const firebaseIds = new Set(firebaseRecords.map(r => r.id));
         const recordsNotInFirebase = localRecords.filter(r => !firebaseIds.has(r.id));
-        records = [...newFromFirebase, ...recordsNotInFirebase];
+        if (newFromFirebase.length > 0 || recordsNotInFirebase.length > 0) {
+          records = [...newFromFirebase, ...recordsNotInFirebase];
+        }
       }
     } catch (error) {
       console.log('Using local records (Firebase unavailable)');
