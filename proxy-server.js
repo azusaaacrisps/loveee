@@ -138,6 +138,25 @@ const server = http.createServer(async (req, res) => {
         res.end();
       }
       return;
+    } else if (pathname === '/expand') {
+      // 展开短链接（如 163cn.tv），跟随 302 重定向拿到真实 music.163.com URL
+      const shortUrl = query.url;
+      if (!shortUrl) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: '缺少 url 参数' }));
+        return;
+      }
+      console.log('[proxy] 展开短链接:', shortUrl);
+      try {
+        const realUrl = await expandShortUrl(shortUrl);
+        console.log('[proxy] 展开结果:', realUrl);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ realUrl }));
+      } catch (err) {
+        console.error('[proxy] 展开短链接失败:', err.message);
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -320,6 +339,32 @@ const fetchPlayerUrl = async (songId, level = 'exhigh') => {
     level,
     encodeType: 'mp3',
     csrf_token: NETEASE_CSRF,
+  });
+};
+
+// 短链接展开：递归跟随 302 重定向（最多 5 次），返回最终 URL
+const expandShortUrl = (urlStr, depth = 0) => {
+  if (depth > 5) return Promise.reject(new Error('重定向次数过多'));
+  return new Promise((resolve, reject) => {
+    const mod = urlStr.startsWith('https://') ? https : http;
+    const req = mod.get(urlStr, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    }, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        response.resume();
+        const nextUrl = new URL(response.headers.location, urlStr).href;
+        console.log('[proxy] 跟随重定向:', nextUrl);
+        resolve(expandShortUrl(nextUrl, depth + 1));
+        return;
+      }
+      response.resume();
+      resolve(urlStr);
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('展开超时')); });
+    req.end();
   });
 };
 

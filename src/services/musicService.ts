@@ -16,6 +16,19 @@ const getProxyAudioUrl = (baseUrl: string, songId: string): string => {
   return `${baseUrl}/song/proxy/${songId}`;
 };
 
+/**
+ * 从粘贴的文案中提取第一个 HTTPS URL（如"分享歌曲《xxx》https://163cn.tv/xxx"）。
+ * 找不到 URL 时回退到原始文本。
+ */
+const extractUrl = (text: string): string => {
+  const match = text.match(/https?:\/\/[^\s)]+/i);
+  if (match) {
+    // 去掉末尾可能被误带入的标点
+    return match[0].replace(/[.,;:!?)]+$/, '');
+  }
+  return text.trim();
+};
+
 const parseNeteaseUrl = (url: string): string | null => {
   const trimmedUrl = url.trim();
   
@@ -39,11 +52,47 @@ const parseNeteaseUrl = (url: string): string | null => {
   return null;
 };
 
+/**
+ * 展开 163cn.tv 等短链接，获取真实 music.163.com URL。
+ * 本地开发命中 proxy-server.js 的 /expand，线上命中 Render 后端的 /expand。
+ */
+const expandShortUrl = async (shortUrl: string): Promise<string> => {
+  const baseUrl = (import.meta.env.VITE_NETEASE_API_BASE as string | undefined)?.trim() || '/netease';
+  const response = await fetch(
+    `${baseUrl}/expand?url=${encodeURIComponent(shortUrl)}`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  if (!response.ok) {
+    throw new Error(`短链接展开失败（${response.status}）`);
+  }
+  const data = await response.json();
+  if (!data.realUrl) {
+    throw new Error('短链接展开失败：未获取到真实URL');
+  }
+  return data.realUrl;
+};
+
 export const fetchSongInfo = async (neteaseUrl: string): Promise<SongInfo> => {
-  const songId = parseNeteaseUrl(neteaseUrl);
+  // 从粘贴的分享文案中提取第一个 URL
+  const url = extractUrl(neteaseUrl);
+  console.log('提取到的URL:', url);
+  
+  let songId = parseNeteaseUrl(url);
+  
+  // 无法直接解析（如 163cn.tv 短链接），通过后端展开
+  if (!songId) {
+    console.log('未直接解析到歌曲ID，尝试展开短链接...');
+    try {
+      const realUrl = await expandShortUrl(url);
+      console.log('短链接展开结果:', realUrl);
+      songId = parseNeteaseUrl(realUrl);
+    } catch (err) {
+      throw new Error(`无法解析网易云音乐链接: ${url}`);
+    }
+  }
   
   if (!songId) {
-    throw new Error(`无法解析网易云音乐链接: ${neteaseUrl}`);
+    throw new Error(`无法解析网易云音乐链接: ${url}`);
   }
 
   console.log(`解析到歌曲ID: ${songId}`);
