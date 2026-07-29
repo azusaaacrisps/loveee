@@ -7,6 +7,15 @@ export interface SongInfo {
   url: string;
 }
 
+/**
+ * 构建音频代理 URL：通过 Render API 转发音频流，绕过浏览器 CORS/Referer 限制。
+ * 本地开发时 Vite 会把 /netease/song/proxy/* 代理到 proxy-server.js，
+ * 正式环境直接请求 Render API 的 /song/proxy 端点。
+ */
+const getProxyAudioUrl = (baseUrl: string, songId: string): string => {
+  return `${baseUrl}/song/proxy/${songId}`;
+};
+
 const parseNeteaseUrl = (url: string): string | null => {
   const trimmedUrl = url.trim();
   
@@ -73,25 +82,9 @@ export const fetchSongInfo = async (neteaseUrl: string): Promise<SongInfo> => {
   
   console.log('API调用成功:', song.name);
 
-  // 播放地址：统一走 /song/url 拿 CDN 直链（NeteaseCloudMusicApi 与私人 API 均支持），
-  // 由浏览器直接播放；无直链时回退官方外链。
-  let playUrl = '';
-  try {
-    const urlResponse = await fetch(
-      `${baseUrl}/song/url?id=${songId}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    if (urlResponse.ok) {
-      const urlData = await urlResponse.json();
-      playUrl = urlData.data?.[0]?.url || '';
-    }
-  } catch (error) {
-    console.error('获取播放地址失败:', error);
-  }
-  if (!playUrl) {
-    playUrl = `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
-  }
-  console.log('使用播放URL:', playUrl);
+  // 播放地址：通过 Render API 代理音频流，避免浏览器端 CORS/Referer 被拦截
+  const playUrl = getProxyAudioUrl(baseUrl, songId);
+  console.log('使用代理播放URL:', playUrl);
 
   // 封面：兼容两种返回格式——
   // 新版 NeteaseCloudMusicApi: song.al.picUrl / song.ar
@@ -122,27 +115,8 @@ export const fetchSongInfo = async (neteaseUrl: string): Promise<SongInfo> => {
  */
 export const refreshSongUrl = async (songId: string): Promise<string> => {
   const baseUrl = (import.meta.env.VITE_NETEASE_API_BASE as string | undefined)?.trim() || '/netease';
-
-  try {
-    const urlResponse = await fetch(
-      `${baseUrl}/song/url?id=${songId}`,
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (urlResponse.ok) {
-      const urlData = await urlResponse.json();
-      const freshUrl = urlData.data?.[0]?.url || '';
-      if (freshUrl) {
-        console.log(`歌曲 ${songId} 获取到新 URL`);
-        return freshUrl;
-      }
-    }
-  } catch {
-    // API 不可用时静默回退
-  }
-
-  // 兜底：网易云外链播放页
-  console.log(`歌曲 ${songId} 使用外链兜底`);
-  return `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
+  console.log(`歌曲 ${songId} 使用代理 URL`);
+  return getProxyAudioUrl(baseUrl, songId);
 };
 
 export const createManualSong = (songId: string, songName: string, artist: string): SongInfo => {

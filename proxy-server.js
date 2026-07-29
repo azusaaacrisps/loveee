@@ -79,6 +79,32 @@ const server = http.createServer(async (req, res) => {
       console.log('播放URL返回数据:', JSON.stringify(result).substring(0, 500));
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
+    } else if (pathname.startsWith('/song/proxy/')) {
+      // 音频代理：GET /song/proxy/{songId}
+      const songId = pathname.split('/').pop();
+      console.log('请求音频代理:', songId);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+
+      // 先尝试拿直链
+      let realUrl = null;
+      try {
+        const urlResult = await fetchPlayerUrl(songId);
+        realUrl = urlResult?.data?.[0]?.url || null;
+      } catch (err) {
+        console.warn('[proxy] 获取直链失败，将回退外链:', err.message);
+      }
+
+      if (!realUrl) {
+        const outerUrl = `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
+        res.writeHead(302, { Location: outerUrl });
+        res.end();
+        return;
+      }
+
+      console.log('真实音频地址:', realUrl);
+      const fallbackUrl = `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
+      proxyAudioStream(realUrl, req, res, fallbackUrl);
+      return;
     } else if (pathname === '/song/file') {
       const songId = query.id;
       console.log('请求播放文件直链:', songId);
