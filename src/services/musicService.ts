@@ -33,9 +33,10 @@ const parseNeteaseUrl = (url: string): string | null => {
   const trimmedUrl = url.trim();
   
   const patterns = [
-    /music\.163\.com.*(?:song\/|song\?id=|id=)(\d+)/i,
-    /y\.music\.163\.com.*(?:song\/|id=)(\d+)/i,
-    /music\.163\.com.*\/(\d+)(?:\/|\?|$)/i,
+    // 非贪婪 .*? 确保匹配第一个 id=，避免被展开后 URL 的追踪参数干扰
+    /music\.163\.com.*?(?:song\/|song\?id=|id=)(\d+)/i,
+    /y\.music\.163\.com.*?(?:song\/|id=)(\d+)/i,
+    /music\.163\.com.*?\/(\d+)(?:\/|\?|$)/i,
     /song\?id=(\d+)/i,
     /song\/(\d+)/i,
     /id=(\d+)/i,
