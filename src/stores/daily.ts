@@ -65,19 +65,14 @@ export const useDailyStore = create<DailyStore>((set, get) => ({
           storage.setItem(`deletedIds:daily:${coupleId}`, Array.from(remainingDeleted));
         }
         
-        const newFromFirebase = firebaseRecords.filter(
-          r => !localIds.has(r.id) && !toDeleteIds.has(r.id)
-        );
-        console.log(`新记录数: ${newFromFirebase.length}`);
-        if (newFromFirebase.length > 0) {
-          console.log(`新记录ID:`, newFromFirebase.map(r => r.id));
-        }
-        
+        // 以 Firebase 为准，过滤掉已删除的，再补上本地独有（未同步）的记录
         const firebaseIds = new Set(firebaseRecords.map(r => r.id));
         const recordsNotInFirebase = localRecords.filter(r => !firebaseIds.has(r.id));
-        if (newFromFirebase.length > 0 || recordsNotInFirebase.length > 0) {
-          records = [...newFromFirebase, ...recordsNotInFirebase];
-        }
+        records = [
+          ...firebaseRecords.filter(r => !toDeleteIds.has(r.id)),
+          ...recordsNotInFirebase,
+        ];
+        console.log(`合并后记录数: ${records.length} (Firebase: ${firebaseRecords.length}, 本地独有: ${recordsNotInFirebase.length})`);
       }
     } catch (error) {
       console.log('Using local records (Firebase unavailable)');

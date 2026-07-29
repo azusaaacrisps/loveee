@@ -71,18 +71,13 @@ export const useSavingsStore = create<SavingsStore>((set, get) => ({
           storage.setItem(`deletedIds:savings:${coupleId}`, Array.from(remainingDeleted));
         }
         
-        const newFromFirebase = firebaseRecords.filter(
-          r => !localIds.has(r.id) && !toDeleteIds.has(r.id)
-        );
-        if (newFromFirebase.length > 0) {
-          console.log(`从Firebase获取 ${newFromFirebase.length} 条新存款记录`);
-        }
-        
+        // 以 Firebase 为准，过滤掉已删除的，再补上本地独有（未同步）的记录
         const firebaseIds = new Set(firebaseRecords.map(r => r.id));
         const recordsNotInFirebase = localRecords.filter(r => !firebaseIds.has(r.id));
-        if (newFromFirebase.length > 0 || recordsNotInFirebase.length > 0) {
-          records = [...newFromFirebase, ...recordsNotInFirebase];
-        }
+        records = [
+          ...firebaseRecords.filter(r => !toDeleteIds.has(r.id)),
+          ...recordsNotInFirebase,
+        ];
       }
 
       const firebaseGoal = await withTimeout(

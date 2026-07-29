@@ -57,18 +57,13 @@ export const useAnniversaryStore = create<AnniversaryStore>((set, get) => ({
           storage.setItem(`deletedIds:anniversary:${coupleId}`, Array.from(remainingDeleted));
         }
         
-        const newFromFirebase = firebaseAnniversaries.filter(
-          a => !localIds.has(a.id) && !toDeleteIds.has(a.id)
-        );
-        if (newFromFirebase.length > 0) {
-          console.log(`从Firebase获取 ${newFromFirebase.length} 个新纪念日`);
-        }
-        
+        // 以 Firebase 为准，过滤掉已删除的，再补上本地独有（未同步）的记录
         const firebaseIds = new Set(firebaseAnniversaries.map(a => a.id));
         const anniversariesNotInFirebase = localAnniversaries.filter(a => !firebaseIds.has(a.id));
-        if (newFromFirebase.length > 0 || anniversariesNotInFirebase.length > 0) {
-          anniversaries = [...newFromFirebase, ...anniversariesNotInFirebase];
-        }
+        anniversaries = [
+          ...firebaseAnniversaries.filter(a => !toDeleteIds.has(a.id)),
+          ...anniversariesNotInFirebase,
+        ];
       }
     } catch (error) {
       console.log('Using local anniversaries (Firebase unavailable)');

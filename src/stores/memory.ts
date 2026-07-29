@@ -57,18 +57,13 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
           storage.setItem(`deletedIds:memory:${coupleId}`, Array.from(remainingDeleted));
         }
         
-        const newFromFirebase = firebaseMemories.filter(
-          m => !localIds.has(m.id) && !toDeleteIds.has(m.id)
-        );
-        if (newFromFirebase.length > 0) {
-          console.log(`从Firebase获取 ${newFromFirebase.length} 条新回忆`);
-        }
-        
+        // 以 Firebase 为准，过滤掉已删除的，再补上本地独有（未同步）的记录
         const firebaseIds = new Set(firebaseMemories.map(m => m.id));
         const memoriesNotInFirebase = localMemories.filter(m => !firebaseIds.has(m.id));
-        if (newFromFirebase.length > 0 || memoriesNotInFirebase.length > 0) {
-          memories = [...newFromFirebase, ...memoriesNotInFirebase];
-        }
+        memories = [
+          ...firebaseMemories.filter(m => !toDeleteIds.has(m.id)),
+          ...memoriesNotInFirebase,
+        ];
       }
     } catch (error) {
       console.log('Using local memories (Firebase unavailable)');

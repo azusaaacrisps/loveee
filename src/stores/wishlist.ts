@@ -59,19 +59,13 @@ export const useWishlistStore = create<WishlistStore>((set, get) => ({
           storage.setItem(`deletedIds:wishlist:${coupleId}`, Array.from(remainingDeleted));
         }
         
-        const newFromFirebase = firebaseWishes.filter(
-          w => !localIds.has(w.id) && !toDeleteIds.has(w.id)
-        );
-        if (newFromFirebase.length > 0) {
-          console.log(`从Firebase获取 ${newFromFirebase.length} 个新心愿`);
-        }
-        
+        // 以 Firebase 为准，过滤掉已删除的，再补上本地独有（未同步）的记录
         const firebaseIds = new Set(firebaseWishes.map(w => w.id));
         const wishesNotInFirebase = localWishes.filter(w => !firebaseIds.has(w.id));
-        // 只有当真正有新数据或差异时才重新赋值，避免空数组覆盖已有数据
-        if (newFromFirebase.length > 0 || wishesNotInFirebase.length > 0) {
-          wishes = [...newFromFirebase, ...wishesNotInFirebase];
-        }
+        wishes = [
+          ...firebaseWishes.filter(w => !toDeleteIds.has(w.id)),
+          ...wishesNotInFirebase,
+        ];
       }
     } catch (error) {
       console.log('Using local wishes (Firebase unavailable)');

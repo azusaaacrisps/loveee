@@ -113,18 +113,13 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
           storage.setItem(`deletedIds:music:${coupleId}`, Array.from(remainingDeleted));
         }
         
-        const newFromFirebase = firebaseSongs.filter(
-          s => !localIds.has(s.id) && !toDeleteIds.has(s.id)
-        );
-        if (newFromFirebase.length > 0) {
-          console.log(`从Firebase获取 ${newFromFirebase.length} 首新歌`);
-        }
-        
+        // 以 Firebase 为准，过滤掉已删除的，再补上本地独有（未同步）的记录
         const firebaseIds = new Set(firebaseSongs.map(s => s.id));
         const songsNotInFirebase = localSongs.filter(s => !firebaseIds.has(s.id));
-        if (newFromFirebase.length > 0 || songsNotInFirebase.length > 0) {
-          songs = [...newFromFirebase, ...songsNotInFirebase];
-        }
+        songs = [
+          ...firebaseSongs.filter(s => !toDeleteIds.has(s.id)),
+          ...songsNotInFirebase,
+        ];
       }
     } catch (error) {
       console.log('Using local songs (Firebase unavailable)');
