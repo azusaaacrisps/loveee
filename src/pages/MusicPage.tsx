@@ -3,14 +3,14 @@ import { useAuthStore } from '../stores/auth';
 import { useCoupleStore } from '../stores/couple';
 import { useMusicStore } from '../stores/music';
 import { useLoveHeartStore } from '../stores/loveHeart';
-import { fetchSongInfo, formatLyrics, createManualSong } from '../services/musicService';
+import { fetchSongInfo, refreshSongUrl, formatLyrics, createManualSong } from '../services/musicService';
 import { BottomNav } from '../components/BottomNav';
 import { SharedSong } from '../types';
 
 export const MusicPage: React.FC = () => {
   const { user } = useAuthStore();
   const { profile } = useCoupleStore();
-  const { songs, currentSong, isPlaying, loadSongs, addSong, setCurrentSong, togglePlay, deleteSong } = useMusicStore();
+  const { songs, currentSong, isPlaying, loadSongs, addSong, setCurrentSong, togglePlay, deleteSong, updateCurrentSongUrl } = useMusicStore();
   const { addHeart } = useLoveHeartStore();
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -150,11 +150,20 @@ export const MusicPage: React.FC = () => {
     }
   };
 
-  const handlePlaySong = (song: SharedSong) => {
+  const handlePlaySong = async (song: SharedSong) => {
     if (currentSong?.id === song.id) {
       togglePlay();
-    } else {
-      setCurrentSong(song);
+      return;
+    }
+    // 先设置歌曲（让 UI 立即响应），再异步刷新播放 URL
+    setCurrentSong(song);
+    try {
+      const freshUrl = await refreshSongUrl(song.songId);
+      if (freshUrl && freshUrl !== song.url) {
+        updateCurrentSongUrl(freshUrl);
+      }
+    } catch {
+      // URL 刷新失败，继续使用已有的 url
     }
   };
 

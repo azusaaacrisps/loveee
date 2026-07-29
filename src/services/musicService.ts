@@ -116,6 +116,35 @@ export const fetchSongInfo = async (neteaseUrl: string): Promise<SongInfo> => {
   };
 };
 
+/**
+ * 播放前刷新歌曲 URL，解决 CDN 临时链接过期导致 404 的问题。
+ * 优先从 API 获取新 URL，失败时使用网易云外链兜底。
+ */
+export const refreshSongUrl = async (songId: string): Promise<string> => {
+  const baseUrl = (import.meta.env.VITE_NETEASE_API_BASE as string | undefined)?.trim() || '/netease';
+
+  try {
+    const urlResponse = await fetch(
+      `${baseUrl}/song/url?id=${songId}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (urlResponse.ok) {
+      const urlData = await urlResponse.json();
+      const freshUrl = urlData.data?.[0]?.url || '';
+      if (freshUrl) {
+        console.log(`歌曲 ${songId} 获取到新 URL`);
+        return freshUrl;
+      }
+    }
+  } catch {
+    // API 不可用时静默回退
+  }
+
+  // 兜底：网易云外链播放页
+  console.log(`歌曲 ${songId} 使用外链兜底`);
+  return `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
+};
+
 export const createManualSong = (songId: string, songName: string, artist: string): SongInfo => {
   return {
     songId,

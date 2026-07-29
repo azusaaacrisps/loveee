@@ -16,6 +16,7 @@ interface MusicStore {
   deleteSong: (id: string) => void;
   setCurrentSong: (song: SharedSong | null) => void;
   togglePlay: () => void;
+  updateCurrentSongUrl: (url: string) => void;
 }
 
 export const useMusicStore = create<MusicStore>((set, get) => ({
@@ -137,5 +138,18 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 
   togglePlay: () => {
     set(state => ({ isPlaying: !state.isPlaying }));
+  },
+
+  updateCurrentSongUrl: (url: string) => {
+    const { currentSong, songs } = get();
+    if (!currentSong) return;
+
+    const updatedSong = { ...currentSong, url };
+    const updatedSongs = songs.map(s => s.id === updatedSong.id ? updatedSong : s);
+    const coupleId = useAuthStore.getState().getCoupleId();
+    if (coupleId) {
+      storage.setItem(`music:${coupleId}`, updatedSongs);
+    }
+    set({ currentSong: updatedSong, songs: updatedSongs });
   },
 }));
