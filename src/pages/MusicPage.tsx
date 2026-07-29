@@ -353,7 +353,7 @@ export const MusicPage: React.FC = () => {
 
       <BottomNav onHeartClick={addHeart} />
 
-      <audio ref={audioRef} src={currentSong?.url || ''} crossOrigin="anonymous" />
+      <audio ref={audioRef} src={currentSong?.url || ''} />
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
