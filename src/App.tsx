@@ -121,7 +121,7 @@ export default function App() {
   }
 
   return (
-    <Router>
+    <Router basename="/loveee/">
       <Routes>
         <Route path="/auth" element={
           <AuthRoute>
