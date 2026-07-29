@@ -10,6 +10,7 @@ interface SavingsStore {
   records: SavingRecord[];
   goal: SavingsGoal | null;
   showCelebration: boolean;
+  _loading: boolean;
   
   loadSavings: () => Promise<void>;
   addRecord: (amount: number, note: string) => void;
@@ -28,10 +29,13 @@ export const useSavingsStore = create<SavingsStore>((set, get) => ({
   records: [],
   goal: null,
   showCelebration: false,
+  _loading: false,
 
   loadSavings: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
 
     const localRecords = storage.getItem<SavingRecord[]>(`savings:${coupleId}`) || [];
     const localGoal = storage.getItem<SavingsGoal>(`savings-goal:${coupleId}`) || null;
@@ -39,6 +43,9 @@ export const useSavingsStore = create<SavingsStore>((set, get) => ({
     
     let records = localRecords;
     let goal = localGoal;
+    
+    // 立即使用本地数据渲染
+    set({ records: localRecords, goal: localGoal });
     
     try {
       const firebaseRecords = await withTimeout(
@@ -92,7 +99,7 @@ export const useSavingsStore = create<SavingsStore>((set, get) => ({
     if (goal) {
       storage.setItem(`savings-goal:${coupleId}`, goal);
     }
-    set({ records, goal });
+    set({ records, goal, _loading: false });
   },
 
   addRecord: async (amount: number, note: string) => {

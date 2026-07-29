@@ -8,6 +8,7 @@ import { withTimeout } from '../utils/firebase';
 
 interface DailyStore {
   records: DailyRecord[];
+  _loading: boolean;
   
   loadRecords: () => Promise<void>;
   addRecord: (content: string, images: string[]) => void;
@@ -17,14 +18,20 @@ interface DailyStore {
 
 export const useDailyStore = create<DailyStore>((set, get) => ({
   records: [],
+  _loading: false,
 
   loadRecords: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
 
     const localRecords = storage.getItem<DailyRecord[]>(`daily:${coupleId}`) || [];
     const deletedIds = new Set(storage.getItem<string[]>(`deletedIds:daily:${coupleId}`) || []);
     let records = localRecords;
+    
+    // 立即使用本地数据渲染
+    set({ records: localRecords });
     
     console.log(`=== 加载记录 ===`);
     console.log(`coupleId: ${coupleId}`);
@@ -75,7 +82,7 @@ export const useDailyStore = create<DailyStore>((set, get) => ({
     }
 
     storage.setItem(`daily:${coupleId}`, records);
-    set({ records });
+    set({ records, _loading: false });
     console.log(`加载完成，最终记录数: ${records.length}`);
   },
 

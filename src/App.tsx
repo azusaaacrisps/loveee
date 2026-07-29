@@ -66,7 +66,7 @@ export default function App() {
   const { loadSavings } = useSavingsStore();
   const { loadLoveHeart } = useLoveHeartStore();
   const { loadWeather } = useWeatherStore();
-  const { loadSongs } = useMusicStore();
+  const { loadSongs, syncSongs, cleanupSongs } = useMusicStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -77,6 +77,7 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) {
       setIsLoading(false);
+      cleanupSongs();
       return;
     }
 
@@ -90,7 +91,7 @@ export default function App() {
         loadSavings(),
         loadLoveHeart(),
         loadWeather(),
-        loadSongs(),
+        loadSongs().then(() => syncSongs()),
       ]);
       setIsLoading(false);
     };

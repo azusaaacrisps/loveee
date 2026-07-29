@@ -7,6 +7,7 @@ import { withTimeout } from '../utils/firebase';
 
 interface LoveHeartStore {
   loveHeart: LoveHeart | null;
+  _loading: boolean;
   
   loadLoveHeart: () => Promise<void>;
   addHeart: () => void;
@@ -15,12 +16,20 @@ interface LoveHeartStore {
 
 export const useLoveHeartStore = create<LoveHeartStore>((set, get) => ({
   loveHeart: null,
+  _loading: false,
 
   loadLoveHeart: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
 
     let loveHeart = storage.getItem<LoveHeart>(`loveheart:${coupleId}`);
+    
+    // 立即使用本地数据渲染
+    if (loveHeart) {
+      set({ loveHeart });
+    }
     
     try {
       const firebaseLoveHeart = await withTimeout(
@@ -45,7 +54,7 @@ export const useLoveHeartStore = create<LoveHeartStore>((set, get) => ({
       storage.setItem(`loveheart:${coupleId}`, loveHeart);
     }
 
-    set({ loveHeart });
+    set({ loveHeart, _loading: false });
   },
 
   addHeart: () => {
@@ -53,27 +62,21 @@ export const useLoveHeartStore = create<LoveHeartStore>((set, get) => ({
     const { user } = useAuthStore.getState();
     if (!coupleId || !user) return;
 
-    let loveHeart = get().loveHeart;
-    if (!loveHeart) {
-      loveHeart = {
-        boyCount: 0,
-        girlCount: 0,
-        updatedAt: new Date().toISOString(),
-      };
-    }
+    const field = user.gender === 'boy' ? 'boyCount' : 'girlCount';
 
-    if (user.gender === 'boy') {
-      loveHeart.boyCount += 1;
-    } else {
-      loveHeart.girlCount += 1;
-    }
+    // 乐观更新本地
+    const loveHeart = get().loveHeart || { boyCount: 0, girlCount: 0, updatedAt: new Date().toISOString() };
+    const updated: LoveHeart = {
+      ...loveHeart,
+      [user.gender === 'boy' ? 'boyCount' : 'girlCount']: loveHeart[field] + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    storage.setItem(`loveheart:${coupleId}`, updated);
+    set({ loveHeart: updated });
 
-    loveHeart.updatedAt = new Date().toISOString();
-    storage.setItem(`loveheart:${coupleId}`, loveHeart);
-    set({ loveHeart });
-
-    loveHeartService.set(coupleId, loveHeart).catch(error => {
-      console.error('Failed to update loveHeart in Firebase:', error);
+    // Firebase 原子增量
+    loveHeartService.increment(coupleId, user.gender).catch(error => {
+      console.error('Failed to increment loveHeart in Firebase:', error);
     });
   },
 

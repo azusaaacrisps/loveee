@@ -10,8 +10,11 @@ interface MusicStore {
   songs: SharedSong[];
   currentSong: SharedSong | null;
   isPlaying: boolean;
+  _loading: boolean;
   
-  loadSongs: () => void;
+  loadSongs: () => Promise<void>;
+  syncSongs: () => Promise<void>;
+  cleanupSongs: () => void;
   addSong: (song: Omit<SharedSong, 'id' | 'createdAt'>) => Promise<void>;
   deleteSong: (id: string) => void;
   setCurrentSong: (song: SharedSong | null) => void;
@@ -23,14 +26,65 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
   songs: [],
   currentSong: null,
   isPlaying: false,
+  _loading: false,
+
+  syncSongs: async () => {
+    const coupleId = useAuthStore.getState().getCoupleId();
+    if (!coupleId) return;
+
+    // 先加载一次初始数据
+    await get().loadSongs();
+
+    // 设置 onSnapshot 实时监听
+    try {
+      const unsub = musicService.onChange(coupleId, (firebaseSongs) => {
+        const localSongs = get().songs;
+        const firebaseIds = new Set(firebaseSongs.map(s => s.id));
+        const localIds = new Set(localSongs.map(s => s.id));
+
+        // 检查是否有新数据或变化
+        const hasNew = firebaseSongs.some(s => !localIds.has(s.id));
+        const hasDelete = localSongs.some(s => !firebaseIds.has(s.id));
+        const hasChange = firebaseSongs.length !== localSongs.length;
+
+        if (hasNew || hasDelete || hasChange) {
+          // 合并：Firebase 数据 + 本地独有的（可能是 Firebase 还没同步的）
+          const merged = [...firebaseSongs];
+          for (const local of localSongs) {
+            if (!firebaseIds.has(local.id)) {
+              merged.push(local);
+            }
+          }
+          storage.setItem(`music:${coupleId}`, merged);
+          set({ songs: merged });
+        }
+      });
+      (get() as any)._unsubscribe = unsub;
+    } catch (error) {
+      console.error('Failed to set up music sync:', error);
+    }
+  },
+
+  cleanupSongs: () => {
+    const unsub = (get() as any)._unsubscribe;
+    if (unsub) {
+      unsub();
+      (get() as any)._unsubscribe = null;
+    }
+  },
 
   loadSongs: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
     
     const localSongs = storage.getItem<SharedSong[]>(`music:${coupleId}`) || [];
     const deletedIds = new Set(storage.getItem<string[]>(`deletedIds:music:${coupleId}`) || []);
     let songs = localSongs;
+    
+    // 立即使用本地数据渲染
+    set({ songs: localSongs });
     
     try {
       const firebaseSongs = await withTimeout(
@@ -72,7 +126,7 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
     }
 
     storage.setItem(`music:${coupleId}`, songs);
-    set({ songs });
+    set({ songs, _loading: false });
   },
 
   addSong: async (song) => {

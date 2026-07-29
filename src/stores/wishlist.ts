@@ -8,6 +8,7 @@ import { withTimeout } from '../utils/firebase';
 
 interface WishlistStore {
   wishes: Wish[];
+  _loading: boolean;
   
   loadWishes: () => Promise<void>;
   addWish: (title: string, description: string) => void;
@@ -19,14 +20,20 @@ interface WishlistStore {
 
 export const useWishlistStore = create<WishlistStore>((set, get) => ({
   wishes: [],
+  _loading: false,
 
   loadWishes: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
 
     const localWishes = storage.getItem<Wish[]>(`wishlist:${coupleId}`) || [];
     const deletedIds = new Set(storage.getItem<string[]>(`deletedIds:wishlist:${coupleId}`) || []);
     let wishes = localWishes;
+    
+    // 立即使用本地数据渲染
+    set({ wishes: localWishes });
     
     try {
       const firebaseWishes = await withTimeout(
@@ -68,7 +75,7 @@ export const useWishlistStore = create<WishlistStore>((set, get) => ({
     }
 
     storage.setItem(`wishlist:${coupleId}`, wishes);
-    set({ wishes });
+    set({ wishes, _loading: false });
   },
 
   addWish: async (title: string, description: string) => {

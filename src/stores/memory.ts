@@ -8,6 +8,7 @@ import { withTimeout } from '../utils/firebase';
 
 interface MemoryStore {
   memories: Memory[];
+  _loading: boolean;
   
   loadMemories: () => Promise<void>;
   addMemory: (content: string, images: string[], isPrivate: boolean, isImportant: boolean) => void;
@@ -17,14 +18,20 @@ interface MemoryStore {
 
 export const useMemoryStore = create<MemoryStore>((set, get) => ({
   memories: [],
+  _loading: false,
 
   loadMemories: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
 
     const localMemories = storage.getItem<Memory[]>(`memory:${coupleId}`) || [];
     const deletedIds = new Set(storage.getItem<string[]>(`deletedIds:memory:${coupleId}`) || []);
     let memories = localMemories;
+    
+    // 立即使用本地数据渲染
+    set({ memories: localMemories });
     
     try {
       const firebaseMemories = await withTimeout(
@@ -66,7 +73,7 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
     }
 
     storage.setItem(`memory:${coupleId}`, memories);
-    set({ memories });
+    set({ memories, _loading: false });
   },
 
   addMemory: async (content: string, images: string[], isPrivate: boolean, isImportant: boolean) => {

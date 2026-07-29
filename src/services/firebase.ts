@@ -9,6 +9,8 @@ import {
   updateDoc,
   query,
   orderBy,
+  increment,
+  onSnapshot,
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
@@ -332,6 +334,14 @@ export const musicService = {
       await deleteDoc(docRef);
     });
   },
+  onChange: (coupleId: string, callback: (songs: SharedSong[]) => void): () => void => {
+    const colRef = collection(db, COLLECTIONS.COUPLES, coupleId, COLLECTIONS.MUSIC);
+    const q = query(colRef, orderBy('addedAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+      const songs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as SharedSong);
+      callback(songs);
+    });
+  },
 };
 
 export const profileService = {
@@ -380,6 +390,13 @@ export const loveHeartService = {
     return withNetwork(async () => {
       const docRef = doc(db, COLLECTIONS.COUPLES, coupleId, 'loveHeart', 'main');
       await setDoc(docRef, data, { merge: true });
+    });
+  },
+  increment: async (coupleId: string, gender: 'boy' | 'girl'): Promise<void> => {
+    return withNetwork(async () => {
+      const docRef = doc(db, COLLECTIONS.COUPLES, coupleId, 'loveHeart', 'main');
+      const field = gender === 'boy' ? 'boyCount' : 'girlCount';
+      await updateDoc(docRef, { [field]: increment(1), updatedAt: new Date().toISOString() });
     });
   },
 };

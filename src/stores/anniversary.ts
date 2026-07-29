@@ -8,6 +8,7 @@ import { withTimeout } from '../utils/firebase';
 
 interface AnniversaryStore {
   anniversaries: Anniversary[];
+  _loading: boolean;
   
   loadAnniversaries: () => Promise<void>;
   addAnniversary: (name: string, date: string) => void;
@@ -17,14 +18,20 @@ interface AnniversaryStore {
 
 export const useAnniversaryStore = create<AnniversaryStore>((set, get) => ({
   anniversaries: [],
+  _loading: false,
 
   loadAnniversaries: async () => {
     const coupleId = useAuthStore.getState().getCoupleId();
     if (!coupleId) return;
+    if (get()._loading) return;
+    set({ _loading: true });
 
     const localAnniversaries = storage.getItem<Anniversary[]>(`anniversary:${coupleId}`) || [];
     const deletedIds = new Set(storage.getItem<string[]>(`deletedIds:anniversary:${coupleId}`) || []);
     let anniversaries = localAnniversaries;
+    
+    // 立即使用本地数据渲染
+    set({ anniversaries: localAnniversaries });
     
     try {
       const firebaseAnniversaries = await withTimeout(
@@ -66,7 +73,7 @@ export const useAnniversaryStore = create<AnniversaryStore>((set, get) => ({
     }
 
     storage.setItem(`anniversary:${coupleId}`, anniversaries);
-    set({ anniversaries });
+    set({ anniversaries, _loading: false });
   },
 
   addAnniversary: async (name: string, date: string) => {
