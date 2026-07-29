@@ -32,6 +32,13 @@ export const MusicPage: React.FC = () => {
     loadSongs();
   }, [loadSongs]);
 
+  // Set referrerPolicy on the audio element (React types don't support it on <audio>)
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.setAttribute('referrerPolicy', 'no-referrer');
+    }
+  }, [currentSong?.url]);
+
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
@@ -337,7 +344,7 @@ export const MusicPage: React.FC = () => {
 
       <BottomNav onHeartClick={addHeart} />
 
-      <audio ref={audioRef} src={currentSong?.url || ''} crossOrigin="anonymous" referrerPolicy="no-referrer" />
+      <audio ref={audioRef} src={currentSong?.url || ''} crossOrigin="anonymous" />
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
