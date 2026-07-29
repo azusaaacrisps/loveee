@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# 环境变量（防止误提交密钥类配置），模板文件除外
+.env
+.env.*
+!.env.example
+
+# 网易云账号 Cookie（绝不能提交）
+netease-cookie.txt
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# local logs and IDE
+build_log.txt
+dev_log.txt
+proxy_log.txt
+tsc_log.txt
+.trae/
