@@ -4,12 +4,8 @@
   <meta charset="utf-8">
   <title>Redirecting...</title>
   <script>
-    // 保存当前完整路径，然后重定向到根路径让 React Router 接管
-    sessionStorage.setItem(
-      'redirect',
-      location.pathname + location.search + location.hash
-    );
-    location.replace('./');
+    // 简单的回退重定向，让 HashRouter 接管
+    location.replace('./#' + (location.pathname + location.search + location.hash).replace(/^\//, ''));
   </script>
 </head>
 <body>

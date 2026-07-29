@@ -6,19 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
     <title>情侣日记</title>
-    <script>
-      // GitHub Pages SPA 兜底：从 404.html 还原原始路径
-      (function () {
-        var redirect = sessionStorage.getItem('redirect');
-        if (redirect) {
-          sessionStorage.removeItem('redirect');
-          var base = '/loveee/';
-          if (redirect !== location.pathname + location.search + location.hash) {
-            history.replaceState(null, '', redirect);
-          }
-        }
-      })();
-    </script>
     <script type="module">
       if (import.meta.hot?.on) {
         import.meta.hot.on('vite:error', (error) => {

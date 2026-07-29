@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
 import { useCoupleStore } from './stores/couple';
 import { useDailyStore } from './stores/daily';
@@ -122,7 +122,7 @@ export default function App() {
   }
 
   return (
-    <Router basename="/loveee/">
+    <Router>
       <Routes>
         <Route path="/auth" element={
           <AuthRoute>
